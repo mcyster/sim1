@@ -10,7 +10,14 @@ import matplotlib.pyplot as plt
 class LivePlot:
     def __init__(self):
         plt.ion()
-        self.fig, self.axs = plt.subplots(3, 1, figsize=(8, 10))
+        self.fig, self.axs = plt.subplots(4, 1, figsize=(8, 12))
+        # improve spacing to avoid overlap
+        try:
+            # increase vertical spacing between subplots
+            self.fig.tight_layout(pad=2.0)
+            self.fig.subplots_adjust(hspace=0.6)
+        except Exception:
+            pass
         try:
             self.fig.canvas.manager.set_window_title("Economy")
         except Exception:
@@ -27,7 +34,7 @@ class LivePlot:
         def get(key):
             return [m.get(key, 0.0) for m in hist]
 
-        ax_econ, ax_people, ax_firms = self.axs
+        ax_econ, ax_people, ax_firms, ax_person = self.axs
 
         # Economy
         ax_econ.clear()
@@ -54,5 +61,43 @@ class LivePlot:
         ax_firms.set_title("firms")
         ax_firms.set_xlabel("day")
         ax_firms.legend()
+
+        # Person (tracked)
+        ax_person.clear()
+        plotted = False
+        if getattr(metrics, "person_history", None):
+            hist_p = metrics.person_history[-365:]
+            xs_p = list(range(len(hist_p)))
+            if hist_p:
+                ax_person.plot(xs_p, [m.get("money", 0.0) for m in hist_p], label="money")
+                ax_person.plot(xs_p, [m.get("health", 0.0) for m in hist_p], label="health")
+                ax_person.plot(xs_p, [m.get("hunger", 0.0) for m in hist_p], label="hunger")
+                plotted = True
+        ax_person.set_title("person")
+        ax_person.set_xlabel("day")
+        if plotted:
+            ax_person.legend()
+        plt.draw()
+        plt.pause(0.01)
+
+    def plot_person(self, metrics):
+        if not metrics.person_history:
+            return
+        # ensure interactive mode and separate figure
+        plt.ion()
+        hist = metrics.person_history[-365:]
+        xs = list(range(len(hist)))
+        fig = plt.figure("person")
+        try:
+            fig.canvas.manager.set_window_title("Person")
+        except Exception:
+            pass
+        fig.clf()
+        ax = fig.add_subplot(111)
+        ax.plot(xs, [m["money"] for m in hist], label="money")
+        ax.plot(xs, [m["health"] for m in hist], label="health")
+        ax.plot(xs, [m["hunger"] for m in hist], label="hunger")
+        ax.set_xlabel("day")
+        ax.legend()
         plt.draw()
         plt.pause(0.01)

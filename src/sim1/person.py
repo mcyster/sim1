@@ -5,6 +5,11 @@ from .brain import DefaultBrain, Brain
 
 class Person:
     def __init__(self):
+        # stable unique id for CLI/plot selection
+        if not hasattr(Person, "_next_id"):
+            Person._next_id = 0
+        self.id = Person._next_id
+        Person._next_id += 1
         self.money = 10.0
         self.food = 1.0
         self.happiness = 50.0

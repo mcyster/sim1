@@ -79,6 +79,9 @@ def main():
                 print("  firms   - show firm stats")
                 print("  people  - show people stats")
                 print("  economy - show economy stats")
+                print("  wealthiest - top 10 by money")
+                print("  poorest    - bottom 10 by money")
+                print("  person <id> - show person stats (index)")
                 print("> ", end="", flush=True)
             elif cmd == Command.FIRMS:
                 firms = economy.firms
@@ -134,6 +137,41 @@ def main():
                     f"transactions={transactions} quantity_sold={quantity_sold:.2f}"
                 )
                 print("> ", end="", flush=True)
+            elif cmd == Command.WEALTHIEST:
+                people = economy.people
+                top = sorted(people, key=lambda person: person.money, reverse=True)[:10]
+                print(f"{'id':>5} {'money':>8} {'health':>6} {'hunger':>6} {'emp':>5} role")
+                for person in top:
+                    print(f"{person.id:5d} {person.money:8.2f} {person.health:6.2f} {person.hunger:6.2f} {str(person.employed):>5s} {person.role}")
+                print("> ", end="", flush=True)
+            elif cmd == Command.POOREST:
+                people = economy.people
+                bottom = sorted(people, key=lambda person: person.money)[:10]
+                print(f"{'id':>5} {'money':>8} {'health':>6} {'hunger':>6} {'emp':>5} role")
+                for person in bottom:
+                    print(f"{person.id:5d} {person.money:8.2f} {person.health:6.2f} {person.hunger:6.2f} {str(person.employed):>5s} {person.role}")
+                print("> ", end="", flush=True)
+            elif cmd.startswith(Command.PERSON.value):
+                parts = cmd.split(maxsplit=1)
+                if len(parts) != 2 or not parts[1].isdigit():
+                    print("usage: person <id>")
+                    print("> ", end="", flush=True)
+                else:
+                    target_id = int(parts[1])
+                    people = economy.people
+                    person = next((p for p in people if p.id == target_id), None)
+                    if person is None:
+                        print("invalid id")
+                    else:
+                        # switch tracked person and reset history
+                        metrics.tracked_person_id = target_id
+                        metrics.person_history = []
+                        print(
+                            f"id={person.id} money={person.money:.2f} food={person.food:.2f} "
+                            f"health={person.health:.2f} happiness={person.happiness:.2f} "
+                            f"hunger={person.hunger:.2f} employed={person.employed} role={person.role}"
+                        )
+                    print("> ", end="", flush=True)
             else:
                 print("> ", end="", flush=True)
         return None
@@ -148,6 +186,7 @@ def main():
                     logf.write(line + "\n")
                 metrics.record(economy)
                 plotter.update(metrics)
+                plotter.plot_person(metrics)
                 step += 1
             if handle_commands() == "quit":
                 break

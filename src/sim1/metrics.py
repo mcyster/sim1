@@ -5,6 +5,8 @@ from .enums import Role
 class Metrics:
     def __init__(self):
         self.history = []
+        self.tracked_person_id = None
+        self.person_history = []
 
     def record(self, economy):
         people = economy.people
@@ -40,3 +42,15 @@ class Metrics:
             "avg_cash": mean(f.cash for f in firms) if firms else 0.0,
         }
         self.history.append(data)
+
+        # track single person if set
+        if self.tracked_person_id is not None:
+            # find person by stable id
+            for person in people:
+                if person.id == self.tracked_person_id:
+                    self.person_history.append({
+                        "money": person.money,
+                        "health": person.health,
+                        "hunger": person.hunger,
+                    })
+                    break

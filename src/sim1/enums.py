@@ -16,3 +16,6 @@ class Command(StrEnum):
     FIRMS = "firms"
     PEOPLE = "people"
     ECONOMY = "economy"
+    WEALTHIEST = "wealthiest"
+    POOREST = "poorest"
+    PERSON = "person"
