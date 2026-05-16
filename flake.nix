@@ -11,39 +11,30 @@
       pkgs = nixpkgs.legacyPackages.${system};
     in
     {
-      devShells.${system}.default = pkgs.mkShell {
-        packages = [
-          pkgs.opencode
-          pkgs.nodejs_22
-          (pkgs.python3.withPackages (ps: with ps; [
-            matplotlib
-          ]))
-          pkgs.git
-        ];
+      devShells.${system} = {
+        default = pkgs.mkShell {
+          packages = [
+            pkgs.opencode
+            pkgs.nodejs_22
+            pkgs.git
+            (pkgs.python3.withPackages (ps: with ps; [ matplotlib ]))
+          ];
 
-        shellHook = ''
-          # Add local scripts to PATH
-          export PATH="$PWD/scripts:$PATH"
-          # Add src to PYTHONPATH for src layout
-          export PYTHONPATH="$PWD/src:$PYTHONPATH"
-          echo "Dev AI shell"
-          echo
+          shellHook = ''
+            export PATH="$PWD/scripts:$PATH"
+            export PYTHONPATH="$PWD/src"
+            echo "Dev AI shell"
+          '';
+        };
 
-          if [ -z "$OPENAI_API_KEY" ]; then
-            echo "OPENAI_API_KEY is not set"
-            echo "Set it with: export OPENAI_API_KEY=..."
-          else
-            echo "OPENAI_API_KEY is set"
-          fi
-
-          echo
-          echo "Run OpenCode:"
-          echo "  opencode"
-          echo
-          echo "Run OpenAI Codex CLI without installing globally:"
-          echo "  npx @openai/codex"
-          echo
-        '';
+        python = pkgs.mkShell {
+          packages = [
+            (pkgs.python3.withPackages (ps: with ps; [ matplotlib ]))
+          ];
+          shellHook = ''
+            export PYTHONPATH="$PWD/src"
+          '';
+        };
       };
     };
 }

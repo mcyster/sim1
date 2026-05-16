@@ -17,7 +17,7 @@ def summary(economy: Economy, step: int):
     avg_health = sum(p.health for p in economy.people) / len(economy.people)
     avg_happiness = sum(p.happiness for p in economy.people) / len(economy.people)
     if economy.firms:
-        avg_wage = sum(f.wage for f in economy.firms) / len(economy.firms)
+        avg_wage = sum(f.wage_offer for f in economy.firms) / len(economy.firms)
     else:
         avg_wage = 0.0
     line = (
@@ -71,7 +71,11 @@ def main():
                 print("running")
                 print("> ", end="", flush=True)
             elif cmd in (Command.H, Command.HELP):
-                print("commands: h/help, q/quit, stop, start")
+                print("commands:")
+                print("  h/help  - show this help message")
+                print("  q/quit  - exit the simulation")
+                print("  stop    - pause the simulation (time stops)")
+                print("  start   - resume the simulation")
                 print("> ", end="", flush=True)
             else:
                 print("> ", end="", flush=True)

@@ -1,5 +1,6 @@
 import random
 from .enums import Role
+from .brain import DefaultBrain, Brain
 
 
 class Person:
@@ -13,33 +14,26 @@ class Person:
         self.role = Role.WORKER
         self.firm = None
         self.hunger = 0.0
+        self.brain: Brain = DefaultBrain()
 
     # --- Decisions ---
     def decide_role(self, economy, avg_wage: float):
-        worker_income = self.productivity * avg_wage
-        owner_income = self.productivity * economy.food_price
-        if self.hunger > 1.0:
-            self.role = Role.WORKER
-        else:
-            self.role = Role.WORKER if worker_income >= owner_income else Role.OWNER
+        self.role = self.brain.choose_role(self, economy, avg_wage)
         self.employed = False
         self.firm = None
 
-    def decide_purchase(self, economy):
+    def buy(self, requested_amount: float, economy) -> float:
         price = economy.food_price
-        if price <= 0:
-            return 0.0
-        need = self.hunger
-        if need <= 0:
+        if price <= 0 or requested_amount <= 0:
             return 0.0
         affordable = self.money / price
-        buy = min(need, affordable, economy.food_supply)
-        if buy <= 0:
+        amount = min(requested_amount, affordable, economy.food_supply)
+        if amount <= 0:
             return 0.0
-        cost = buy * price
+        cost = amount * price
         self.money -= cost
-        self.food += buy
-        economy.food_supply -= buy
+        self.food += amount
+        economy.food_supply -= amount
         return cost
 
     def consume(self):
@@ -53,3 +47,16 @@ class Person:
         if self.hunger > 3.0:
             self.hunger = 3.0
         return eat
+
+    def tick(self, economy) -> None:
+        # consumption + physiological updates
+        ate = self.consume()
+        if ate >= 1.0:
+            self.health = min(100.0, self.health + 1.0)
+            self.happiness = min(100.0, self.happiness + 0.5)
+        else:
+            self.health = max(0.0, self.health - 2.0)
+            self.happiness = max(0.0, self.happiness - 1.0)
+        # unemployment penalty
+        if not self.employed:
+            self.happiness = max(0.0, self.happiness - 0.2)

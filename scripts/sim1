@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Run the simulation CLI
-python -m sim1.cli "$@"
+# Always run in the clean python devShell to avoid opencode conflicts
+exec nix develop .#python -c python -m sim1.cli "$@"

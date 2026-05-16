@@ -10,10 +10,10 @@ class Economy:
         self.firms = []
 
     # --- Helpers ---
-    def avg_wage(self):
+    def average_wage(self):
         if not self.firms:
             return 0.5
-        return sum(f.wage for f in self.firms) / len(self.firms)
+        return sum(firm.wage_offer for firm in self.firms) / len(self.firms)
 
     # --- Markets ---
     def add_food(self, amount: float):

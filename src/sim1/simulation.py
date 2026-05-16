@@ -5,79 +5,83 @@ from .enums import Role
 
 
 def choose_roles(economy: Economy):
-    avg = economy.avg_wage()
-    for p in economy.people:
-        p.decide_role(economy, avg)
+    average_wage = economy.average_wage()
+    for person in economy.people:
+        person.decide_role(economy, average_wage)
     # ensure at least one owner exists
     if not any(p.role == Role.OWNER for p in economy.people):
         max(economy.people, key=lambda p: p.productivity).role = Role.OWNER
 
 
-def avg_wage(economy: Economy):
+def average_wage(economy: Economy):
     if not economy.firms:
         return 0.5
-    return sum(f.wage for f in economy.firms) / len(economy.firms)
+    return sum(firm.wage for firm in economy.firms) / len(economy.firms)
 
 
 def create_firms(economy: Economy):
     economy.firms = []
-    for p in economy.people:
-        if p.role == Role.OWNER:
-            f = Firm(owner=p)
-            # initial wage tied to price
-            f.wage = economy.food_price * 0.5
-            economy.firms.append(f)
-            p.firm = f
+    for person in economy.people:
+        if person.role == Role.OWNER:
+            firm = Firm(owner=person)
+            # initial wage_offer (will be updated by owner brain)
+            firm.wage_offer = economy.food_price * 0.5
+            # seed firm with owner capital
+            initial_capital = min(person.money * 0.2, person.money)
+            person.money -= initial_capital
+            firm.cash += initial_capital
+            economy.firms.append(firm)
+            person.firm = firm
 
 
-def hire_workers(economy: Economy):
-    workers = [p for p in economy.people if p.role == Role.WORKER]
+def match_labor(economy: Economy):
+    # clear previous assignments
+    for firm in economy.firms:
+        firm.workers = []
+    for person in economy.people:
+        person.employed = False
+        person.firm = None
 
-    # workers choose best wage firm
-    for p in workers:
-        if not economy.firms:
+    # owners set wage offers
+    for firm in economy.firms:
+        owner = firm.owner
+        offered_wage = owner.brain.offer_wage(owner, firm, economy)
+        firm.wage_offer = max(0.01, min(offered_wage, economy.food_price * 2.0))
+
+    # each person chooses employment
+    for person in economy.people:
+        if person.role != Role.WORKER:
             continue
-        best = max(economy.firms, key=lambda f: f.wage)
-        # always hire; profitability handled via firm cash (owner absorbs losses)
-        best.workers.append(p)
-        p.employed = True
-        p.firm = best
+        employer = person.brain.choose_employment(person, economy)
+        if employer is not None:
+            if employer.hire(person, economy):
+                person.employed = True
+                person.firm = employer
 
     # update firm efficiencies after hiring (diminishing returns with size)
     alpha = 0.2
-    for f in economy.firms:
-        n = len(f.workers)
-        f.efficiency = f.base_eff / (1.0 + alpha * n)
-
-    # adapt wages based on hiring outcome
-    for f in economy.firms:
-        if len(f.workers) == 0:
-            # couldn't attract workers -> raise wage
-            f.wage *= 1.05
-        else:
-            # has workers -> slight downward pressure
-            f.wage *= 0.99
-        # keep wage reasonable
-        f.wage = max(0.01, min(f.wage, economy.food_price * 2.0))
+    for firm in economy.firms:
+        worker_count = len(firm.workers)
+        firm.efficiency = firm.base_eff / (1.0 + alpha * worker_count)
 
 
 def produce_food(economy: Economy):
     total = 0.0
     # firms produce with efficiency applied to total labor
-    for f in economy.firms:
-        labor = f.owner.productivity + sum(w.productivity for w in f.workers)
-        output = labor * f.efficiency
+    for firm in economy.firms:
+        labor = firm.owner.productivity + sum(worker.productivity for worker in firm.workers)
+        output = labor * firm.efficiency
         total += output
     economy.add_food(total)
 
 
 def pay_wages(economy: Economy):
-    for f in economy.firms:
+    for firm in economy.firms:
         # pay workers
-        for w in f.workers:
-            wage = w.productivity * f.wage
-            w.money += wage
-            f.cash -= wage
+        for worker in firm.workers:
+            wage = worker.productivity * firm.wage_offer
+            worker.money += wage
+            firm.cash -= wage
         # do NOT assign revenue here; revenue comes from actual sales in trading()
 
 
@@ -119,87 +123,63 @@ def trading(economy: Economy):
     price = economy.food_price
     total_spent = 0.0
 
-    for p in economy.people:
-        cost = p.decide_purchase(economy)
+    for person in economy.people:
+        requested = person.brain.choose_purchase(person, economy)
+        cost = person.buy(requested, economy)
         total_spent += cost
 
     # distribute actual sales revenue to firms proportional to output
     total_output = 0.0
     firm_outputs = {}
 
-    for f in economy.firms:
-        labor = f.owner.productivity + sum(w.productivity for w in f.workers)
-        output = labor * f.efficiency
-        firm_outputs[f] = output
+    for firm in economy.firms:
+        labor = firm.owner.productivity + sum(worker.productivity for worker in firm.workers)
+        output = labor * firm.efficiency
+        firm_outputs[firm] = output
         total_output += output
 
     if total_output > 0 and total_spent > 0:
-        for f, output in firm_outputs.items():
+        for firm, output in firm_outputs.items():
             share = output / total_output
-            f.cash += total_spent * share
+            firm.cash += total_spent * share
 
     # distribute firm profits/losses to owners after sales
     surviving_firms = []
-    for f in economy.firms:
-        profit = f.cash
+    for firm in economy.firms:
+        profit = firm.cash
         # update health based on profit
         if profit < 0:
-            f.health -= 0.1
+            firm.health -= 0.1
         else:
-            f.health += 0.05
-        f.health = max(0.0, min(2.0, f.health))
+            firm.health += 0.05
+        firm.health = max(0.0, min(2.0, firm.health))
 
         # transfer profit/loss to owner
-        f.owner.money += f.cash
-        f.cash = 0.0
+        firm.owner.money += firm.cash
+        firm.cash = 0.0
 
         # cull unhealthy firms (owner becomes worker)
-        if f.health > 0.0:
-            surviving_firms.append(f)
+        if firm.health > 0.0:
+            surviving_firms.append(firm)
         else:
-            f.owner.role = "worker"
-            f.owner.firm = None
+            firm.owner.role = "worker"
+            firm.owner.firm = None
 
     economy.firms = surviving_firms
 
 
-def consumption(economy: Economy):
-    for p in economy.people:
-        p._ate = p.consume()
-
-
-def update_health(economy: Economy):
-    for p in economy.people:
-        if getattr(p, "_ate", 0.0) >= 1.0:
-            p.health = min(100.0, p.health + 1.0)
-        else:
-            p.health = max(0.0, p.health - 2.0)
-
-
-def update_happiness(economy: Economy):
-    for p in economy.people:
-        if getattr(p, "_ate", 0.0) >= 1.0:
-            p.happiness = min(100.0, p.happiness + 0.5)
-        else:
-            p.happiness = max(0.0, p.happiness - 1.0)
-        # slight penalty for unemployment
-        if not p.employed:
-            p.happiness = max(0.0, p.happiness - 0.2)
-        # cleanup temp field
-        if hasattr(p, "_ate"):
-            delattr(p, "_ate")
 
 
 def tick(economy: Economy):
     choose_roles(economy)
     create_firms(economy)
-    hire_workers(economy)
+    match_labor(economy)
     produce_food(economy)
     pay_wages(economy)
     supply = calc_supply(economy)
     demand = calc_demand(economy)
     update_price(economy, supply, demand)
     trading(economy)
-    consumption(economy)
-    update_health(economy)
-    update_happiness(economy)
+    # per-person updates
+    for person in economy.people:
+        person.tick(economy)
