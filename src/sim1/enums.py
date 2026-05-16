@@ -13,3 +13,6 @@ class Command(StrEnum):
     Q = "q"
     STOP = "stop"
     START = "start"
+    FIRMS = "firms"
+    PEOPLE = "people"
+    ECONOMY = "economy"

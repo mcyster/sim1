@@ -8,6 +8,9 @@ class Economy:
         self.total_food = 0.0
         self.food_supply = 0.0
         self.firms = []
+        # last tick transaction stats
+        self.transactions = 0
+        self.quantity_sold = 0.0
 
     # --- Helpers ---
     def average_wage(self):

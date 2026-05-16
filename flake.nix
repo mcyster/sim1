@@ -14,10 +14,10 @@
       devShells.${system} = {
         default = pkgs.mkShell {
           packages = [
+            (pkgs.python3.withPackages (ps: with ps; [ matplotlib ]))
             pkgs.opencode
             pkgs.nodejs_22
             pkgs.git
-            (pkgs.python3.withPackages (ps: with ps; [ matplotlib ]))
           ];
 
           shellHook = ''

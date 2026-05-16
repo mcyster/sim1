@@ -23,9 +23,15 @@ def create_firms(economy: Economy):
     economy.firms = []
     for person in economy.people:
         if person.role == Role.OWNER:
-            firm = Firm(owner=person)
             # initial wage_offer (will be updated by owner brain)
-            firm.wage_offer = economy.food_price * 0.5
+            initial_wage = economy.food_price * 0.5
+            # enforce minimum owner capital to start firm
+            min_capital = 2.0 * initial_wage + 1.0
+            if person.money < min_capital:
+                person.role = Role.WORKER
+                continue
+            firm = Firm(owner=person)
+            firm.wage_offer = initial_wage
             # seed firm with owner capital
             initial_capital = min(person.money * 0.2, person.money)
             person.money -= initial_capital
@@ -45,6 +51,11 @@ def match_labor(economy: Economy):
     # owners set wage offers
     for firm in economy.firms:
         owner = firm.owner
+        # allow owner to inject capital
+        amount = owner.brain.allocate_capital(owner, firm, economy)
+        if amount > 0:
+            owner.money -= amount
+            firm.cash += amount
         offered_wage = owner.brain.offer_wage(owner, firm, economy)
         firm.wage_offer = max(0.01, min(offered_wage, economy.food_price * 2.0))
 
@@ -69,6 +80,11 @@ def produce_food(economy: Economy):
     total = 0.0
     # firms produce with efficiency applied to total labor
     for firm in economy.firms:
+        # owner decides whether to produce
+        produce = firm.owner.brain.should_produce(firm.owner, firm, economy)
+        firm.produced = bool(produce)
+        if not firm.produced:
+            continue
         labor = firm.owner.productivity + sum(worker.productivity for worker in firm.workers)
         output = labor * firm.efficiency
         total += output
@@ -77,6 +93,9 @@ def produce_food(economy: Economy):
 
 def pay_wages(economy: Economy):
     for firm in economy.firms:
+        # only pay wages if firm produced this tick
+        if not firm.produced:
+            continue
         # pay workers
         for worker in firm.workers:
             wage = worker.productivity * firm.wage_offer
@@ -92,18 +111,36 @@ def calc_supply(economy: Economy):
 
 
 def calc_demand(economy: Economy):
-    # each person wants 1 unit per tick
-    return float(len(economy.people))
+    # affordability-based demand: sum of what people can pay for
+    price = max(economy.food_price, 1e-6)
+    total = 0.0
+    for person in economy.people:
+        # desired amount from brain (e.g., hunger)
+        desired = person.brain.choose_purchase(person, economy)
+        # cap by affordability
+        affordable = person.money / price
+        total += max(0.0, min(desired, affordable))
+    return total
 
 
 def update_price(economy: Economy, supply: float, demand: float):
-    # small, damped adjustment to avoid explosions
-    alpha = 0.01
+    # transaction-based pricing using realized sales
+    price = max(economy.food_price, 1e-6)
+    sold = getattr(economy, "quantity_sold", 0.0)
+    # if nothing traded, price is too high -> decay
+    if sold <= 0.0:
+        economy.food_price = max(0.01, price * 0.95)
+        return
+
+    # compare sold vs available supply to adjust price
+    # if sold > supply -> excess demand -> price up
+    # if sold < supply -> excess supply -> price down
+    alpha = 0.02
     denom = max(supply, 1e-6)
-    delta = alpha * (demand - supply) / denom
+    delta = alpha * (sold - supply) / denom
     # cap movement per tick
     delta = max(-0.05, min(0.05, delta))
-    economy.food_price = max(0.01, economy.food_price * (1.0 + delta))
+    economy.food_price = max(0.01, price * (1.0 + delta))
 
 
 def update_wage(economy: Economy):
@@ -122,11 +159,16 @@ def update_wage(economy: Economy):
 def trading(economy: Economy):
     price = economy.food_price
     total_spent = 0.0
+    transaction_count = 0
+    quantity_sold = 0.0
 
     for person in economy.people:
         requested = person.brain.choose_purchase(person, economy)
         cost = person.buy(requested, economy)
         total_spent += cost
+        if cost > 0.0:
+            transaction_count += 1
+            quantity_sold += cost / max(price, 1e-6)
 
     # distribute actual sales revenue to firms proportional to output
     total_output = 0.0
@@ -162,10 +204,14 @@ def trading(economy: Economy):
         if firm.health > 0.0:
             surviving_firms.append(firm)
         else:
-            firm.owner.role = "worker"
+            # use enum, not raw string
+            firm.owner.role = Role.WORKER
             firm.owner.firm = None
 
     economy.firms = surviving_firms
+    # record transaction stats
+    economy.transactions = transaction_count
+    economy.quantity_sold = quantity_sold
 
 
 

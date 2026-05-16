@@ -76,6 +76,63 @@ def main():
                 print("  q/quit  - exit the simulation")
                 print("  stop    - pause the simulation (time stops)")
                 print("  start   - resume the simulation")
+                print("  firms   - show firm stats")
+                print("  people  - show people stats")
+                print("  economy - show economy stats")
+                print("> ", end="", flush=True)
+            elif cmd == Command.FIRMS:
+                firms = economy.firms
+                count = len(firms)
+                if count == 0:
+                    print("firms=0")
+                else:
+                    avg_workers = sum(len(f.workers) for f in firms) / count
+                    avg_cash = sum(f.cash for f in firms) / count
+                    avg_wage = sum(f.wage_offer for f in firms) / count
+                    producing = sum(1 for f in firms if getattr(f, "produced", False))
+                    not_producing = count - producing
+                    print(
+                        f"firms={count} producing={producing} idle={not_producing} "
+                        f"avg_workers={avg_workers:.2f} avg_cash={avg_cash:.2f} avg_wage={avg_wage:.3f}"
+                    )
+                print("> ", end="", flush=True)
+            elif cmd == Command.PEOPLE:
+                people = economy.people
+                count = len(people)
+                if count == 0:
+                    print("people=0")
+                else:
+                    employed = sum(1 for person in people if person.employed)
+                    avg_money = sum(person.money for person in people) / count
+                    avg_health = sum(person.health for person in people) / count
+                    avg_hunger = sum(person.hunger for person in people) / count
+                    avg_happiness = sum(person.happiness for person in people) / count
+                    wages = [
+                        person.productivity * person.firm.wage_offer
+                        for person in people
+                        if person.employed and person.firm is not None
+                    ]
+                    avg_wage = (sum(wages) / len(wages)) if wages else 0.0
+                    print(
+                        f"people={count} employed={employed} avg_money={avg_money:.2f} "
+                        f"avg_health={avg_health:.2f} avg_hunger={avg_hunger:.2f} "
+                        f"avg_happiness={avg_happiness:.2f} avg_wage={avg_wage:.3f}"
+                    )
+                print("> ", end="", flush=True)
+            elif cmd == Command.ECONOMY:
+                price = economy.food_price
+                supply = economy.food_supply
+                total_food = economy.total_food
+                transactions = getattr(economy, "transactions", 0)
+                quantity_sold = getattr(economy, "quantity_sold", 0.0)
+                # include food held by people
+                total_food_people = sum(person.food for person in economy.people)
+                avg_food = (total_food_people / len(economy.people)) if economy.people else 0.0
+                print(
+                    f"price={price:.3f} supply={supply:.2f} produced={total_food:.2f} "
+                    f"food_people={total_food_people:.2f} avg_food={avg_food:.2f} "
+                    f"transactions={transactions} quantity_sold={quantity_sold:.2f}"
+                )
                 print("> ", end="", flush=True)
             else:
                 print("> ", end="", flush=True)

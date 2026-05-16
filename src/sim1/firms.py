@@ -8,6 +8,8 @@ class Firm:
         self.base_eff = owner.productivity
         self.efficiency = self.base_eff
         self.health = 1.0
+        # explicit production flag for this tick
+        self.produced = False
 
     # --- Hiring API ---
     def can_hire(self, person, economy) -> bool:
@@ -17,6 +19,11 @@ class Firm:
 
         # Liquidity gate: avoid hiring when already cash-negative
         if self.cash < 0.0:
+            return False
+
+        # Basic affordability: must cover this worker's expected wage
+        expected_wage = person.productivity * self.wage_offer
+        if self.cash < expected_wage:
             return False
 
         return True

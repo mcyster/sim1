@@ -15,6 +15,7 @@ class Person:
         self.firm = None
         self.hunger = 0.0
         self.brain: Brain = DefaultBrain()
+        self.no_food_ticks = 0
 
     # --- Decisions ---
     def decide_role(self, economy, avg_wage: float):
@@ -51,6 +52,11 @@ class Person:
     def tick(self, economy) -> None:
         # consumption + physiological updates
         ate = self.consume()
+        # track consecutive insufficient food
+        if ate < 1.0:
+            self.no_food_ticks += 1
+        else:
+            self.no_food_ticks = 0
         if ate >= 1.0:
             self.health = min(100.0, self.health + 1.0)
             self.happiness = min(100.0, self.happiness + 0.5)

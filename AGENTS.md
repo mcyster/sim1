@@ -32,6 +32,7 @@ These standards apply to all code in this repository.
 - Prefer simple, readable code over cleverness.
 - Minimize hidden side effects.
 - Keep functions small and focused.
+- Keep responses concise: do not exceed 15 lines unless explicitly requested.
 
 ## Context
 
