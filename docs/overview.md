@@ -1,101 +1,115 @@
-# Sim1 Economy Spec
+# Sim1 Economy Overview
 
 ## Goal
 
-Simulate a simple food-based economy with thousands of people.
+Simulate a food-based economy with many agents where prices, wages, production, and welfare emerge from agent decisions.
 
-The simulation should show basic economic dynamics over time:
+Key outputs over time:
+- food production and inventory
+- food price
+- wages (firm wage offers)
+- employment (workers + owners)
+- health, happiness, hunger
+- money/wealth distribution
 
-- food production
-- food supply and demand
-- food price changes
-- employment
-- health
-- happiness
-- wealth distribution
+## Architecture
 
-## Core Concepts
+Three layers with clear responsibilities:
+
+- Person: state + constraints + decisions (via Brain)
+- Firm: production container + constraints (no strategy)
+- Economy: coordinates markets and interactions
+
+Brains (per person) provide strategy:
+- choose_role
+- choose_employment
+- choose_purchase
+- offer_wage (for owners)
 
 ## Person
 
-Each person has:
+State:
+- money, food, hunger, health, happiness, productivity
+- role (Worker | Owner), employed flag, firm reference
 
-- money
-- food
-- happiness
-- health
-- productivity
-- employed
+Constraints (enforced in Person methods):
+- cannot spend more money than available
+- buying limited by price and market supply
+- consumption reduces food and updates hunger
 
-### Money
+Lifecycle:
+- `tick(economy)` updates consumption, hunger, health, happiness
 
-Money is used to buy food.
+## Firm
 
-### Food
+State:
+- owner (Person)
+- workers (list[Person])
+- wage_offer (float)
+- cash, efficiency, health
 
-Food is stored by a person and consumed each tick.
+Constraints:
+- can_hire only if wage_offer <= food_price and sufficient cash
+- hiring may require owner to transfer funds to firm
 
-### Happiness
+Behavior:
+- no internal strategy; owner brain sets wage_offer
 
-Happiness represents morale and general satisfaction.
+Production:
+- output = (owner + workers productivity) * efficiency
+- efficiency decreases with worker count (coordination cost)
 
-Happiness affects employment probability.
+## Economy
 
-### Health
+State:
+- people, firms
+- food_price
+- food_supply (inventory)
 
-Health represents physical condition.
+Responsibilities:
+- create firms for owners (seeded with owner capital)
+- set wages via owner brains
+- match labor (workers choose firms; firms enforce constraints)
+- run production and add to food_supply
+- run market: people buy food; spending becomes firm revenue
+- update prices based on supply vs demand
 
-Health decreases when a person cannot eat.
+## Markets
 
-Health may affect happiness and employment probability.
+### Labor Market
+- Firms publish a single `wage_offer`
+- Workers choose the best offer via their brain
+- Firms accept via constraints (cash + profitability)
 
-### Productivity
+### Goods Market (Food)
+- People request purchases based on hunger
+- Actual purchases are clipped by affordability and supply
+- Total spending is distributed to firms proportional to output
 
-Productivity controls how much food a person produces when employed.
+### Price Update
+- Price adjusts with damped response to (demand - supply)
 
-### Employed
+## Tick (Daily)
 
-Employed means the person works during the current tick.
+1. People decide roles (owner/worker)
+2. Firms are created and seeded with owner capital
+3. Owners set `wage_offer`
+4. Workers choose employment; firms accept/reject
+5. Firms produce food → added to `food_supply`
+6. Wages paid from firm cash
+7. People buy food → money flows to firms
+8. Firm profit/loss applied; unhealthy firms exit
+9. Each person runs `tick()` (consume, update health/happiness)
+10. Price updated; metrics recorded
 
-## Food
+## Invariants
 
-Food is the only produced good.
+- Money is conserved except via transfers (wages, purchases)
+- Food is conserved in `food_supply` until consumed
+- Brains propose actions; Person/Firm enforce constraints
 
-Food is:
+## Notes
 
-- produced by employed people
-- bought by people
-- eaten by people
-- priced based on supply and demand
-
-## Simulation Tick
-
-Each tick represents one day.
-
-For each tick:
-
-1. Each person becomes employed or unemployed for the tick.
-2. Employed people produce food based on productivity.
-3. Employed people earn money.
-4. Economy calculates food supply.
-5. Economy calculates food demand.
-6. Food price increases or decreases based on supply and demand.
-7. People buy food if they can afford it.
-8. People eat food if they have it.
-9. Health is updated.
-10. Happiness is updated.
-11. Metrics are recorded.
-12. Graphs are updated.
-
-## Employment
-
-Each person may be employed or unemployed each tick.
-
-Employment probability may be based on happiness and health.
-
-Example:
-
-```text
-employment_probability = happiness * health / 10000
-```
-
+- Single wage per firm per tick (no per-worker contracts yet)
+- No credit/loans; growth requires owner capital
+- Designed for multiple brain types (personalities / AI agents)
