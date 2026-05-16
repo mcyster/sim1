@@ -1,0 +1,11 @@
+.aider*
+.direnv/
+output/
+__pycache__/
+*.pyc
+
+.mypy_cache/
+.pytest_cache/
+.aider/
+.envrc
+.aider.*

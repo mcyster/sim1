@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Run the simulation CLI
+python -m sim1.cli "$@"
