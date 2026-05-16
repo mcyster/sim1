@@ -73,7 +73,12 @@ class LivePlot:
                 ax_person.plot(xs_p, [m.get("health", 0.0) for m in hist_p], label="health")
                 ax_person.plot(xs_p, [m.get("hunger", 0.0) for m in hist_p], label="hunger")
                 plotted = True
-        ax_person.set_title("person")
+        # include tracked person id in title if available
+        person_id = getattr(metrics, "tracked_person_id", None)
+        if person_id is not None:
+            ax_person.set_title(f"person {person_id}")
+        else:
+            ax_person.set_title("person")
         ax_person.set_xlabel("day")
         if plotted:
             ax_person.legend()

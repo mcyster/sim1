@@ -217,6 +217,7 @@ def trading(economy: Economy):
 
 
 def tick(economy: Economy):
+    economy.day += 1
     choose_roles(economy)
     create_firms(economy)
     match_labor(economy)

@@ -14,7 +14,7 @@
       devShells.${system} = {
         default = pkgs.mkShell {
           packages = [
-            (pkgs.python3.withPackages (ps: with ps; [ matplotlib ]))
+            (pkgs.python3.withPackages (ps: with ps; [ matplotlib openai ]))
             pkgs.opencode
             pkgs.nodejs_22
             pkgs.git
@@ -29,7 +29,7 @@
 
         python = pkgs.mkShell {
           packages = [
-            (pkgs.python3.withPackages (ps: with ps; [ matplotlib ]))
+            (pkgs.python3.withPackages (ps: with ps; [ matplotlib openai ]))
           ];
           shellHook = ''
             export PYTHONPATH="$PWD/src"

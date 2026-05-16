@@ -5,7 +5,8 @@ from .enums import Role
 class Metrics:
     def __init__(self):
         self.history = []
-        self.tracked_person_id = None
+        # default track first person
+        self.tracked_person_id = 0
         self.person_history = []
 
     def record(self, economy):
@@ -42,6 +43,8 @@ class Metrics:
             "avg_cash": mean(f.cash for f in firms) if firms else 0.0,
         }
         self.history.append(data)
+        # expose history to economy for AI context (lightweight reference)
+        economy._metrics_history = self.history
 
         # track single person if set
         if self.tracked_person_id is not None:

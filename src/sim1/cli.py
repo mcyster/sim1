@@ -34,6 +34,7 @@ def main():
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--summary-every", type=int, default=1, help="print summary every N ticks")
     parser.add_argument("--once", action="store_true", help="run fixed number of ticks")
+    parser.add_argument("--ai-brain", action="store_true", help="add one AI-controlled person")
 
     args = parser.parse_args()
 
@@ -41,6 +42,13 @@ def main():
     economy = Economy(population_size=args.population)
     metrics = Metrics()
     plotter = LivePlot()
+    # optionally replace one person's brain with OpenAI brain
+    if args.ai_brain and economy.people:
+        from .brain import OpenAIBrain
+        economy.people[0].brain = OpenAIBrain()
+        log_path = Path("output") / f"person_{economy.people[0].id}.log"
+        print(f"AI brain enabled for person id={economy.people[0].id}")
+        print(f"Logging person to {log_path}")
     # create timestamped log file
     ts = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     out_dir = Path("output")
@@ -166,8 +174,9 @@ def main():
                         # switch tracked person and reset history
                         metrics.tracked_person_id = target_id
                         metrics.person_history = []
+                        brain_name = person.brain.__class__.__name__
                         print(
-                            f"id={person.id} money={person.money:.2f} food={person.food:.2f} "
+                            f"id={person.id} brain={brain_name} money={person.money:.2f} food={person.food:.2f} "
                             f"health={person.health:.2f} happiness={person.happiness:.2f} "
                             f"hunger={person.hunger:.2f} employed={person.employed} role={person.role}"
                         )
